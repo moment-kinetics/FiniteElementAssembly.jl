@@ -1,0 +1,34 @@
+name = "FiniteElementAssembly"
+uuid = "3b486e12-1add-4838-a4c3-dfcc473ab3e3"
+authors = ["Michael Hardman <29800382+mrhardman@users.noreply.github.com>"]
+version = "0.1.0"
+
+[deps]
+FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
+FiniteElementMatrices = "21a267ae-cf5f-40e4-86cc-2968ca96a734"
+LagrangePolynomials = "fb83b288-ce1a-45f4-939e-c34c34051e49"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+SuiteSparse = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
+
+[sources]
+FiniteElementMatrices = {rev = "main", url = "https://github.com/moment-kinetics/FiniteElementMatrices.jl"}
+LagrangePolynomials = {rev = "main", url = "https://github.com/moment-kinetics/LagrangePolynomials.jl"}
+
+[compat]
+FastGaussQuadrature = "1.1.0"
+FiniteElementMatrices = "0.1.0"
+LagrangePolynomials = "0.1.0"
+LinearAlgebra = "1.11.0"
+Revise = "3.12.3"
+SparseArrays = "1.11.0"
+SpecialFunctions = "2.6.1"
+
+[extras]
+StableRNGs = "860ef19b-820b-49d6-a774-d7a799459cd3"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test", "StableRNGs"]
