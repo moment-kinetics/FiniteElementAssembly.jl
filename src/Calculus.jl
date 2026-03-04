@@ -9,9 +9,10 @@ points in vx. As a result, this means that this integral
 is only exact for polynomials with order up to 2N-3 where
 N=`ngrid` is the number of collocation points per element.
 """
-function integral(prefactor::Function,
+function integral(prefactor::TF,
                 integrand::AbstractArray{Float64,1},
-                vx::FiniteElementCoordinate)
+                vx::FiniteElementCoordinate
+                ) where TF <: Function
     @boundscheck (vx.n,) == size(integrand) || throw(BoundsError(integrand))
     integral = 0.0
     for ivx ∈ eachindex(vx.grid)
@@ -29,10 +30,11 @@ points in vx and vy. As a result, this means that this integral
 is only exact for polynomials with order up to 2N-3 where
 N=`ngrid` is the number of collocation points per element.
 """
-function integral(prefactor::Function,
+function integral(prefactor::TF,
                 integrand::AbstractArray{Float64,2},
                 vx::FiniteElementCoordinate,
-                vy::FiniteElementCoordinate)
+                vy::FiniteElementCoordinate
+                ) where TF <: Function
     @boundscheck (vx.n, vy.n) == size(integrand) || throw(BoundsError(integrand))
     integral = 0.0
     for ivy ∈ eachindex(vy.grid), ivx ∈ eachindex(vx.grid)

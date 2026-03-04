@@ -7,7 +7,7 @@ export FiniteElementCoordinate,
     exclude_lower_boundary_point, exclude_upper_boundary_point,
     BoundaryPointType,
     impose_boundary_condition,
-    BoundaryConditionType, NaturalBC, DirichletBC, PeriodicBC,
+    AbstractBoundaryCondition, NaturalBC, DirichletBC, PeriodicBC,
     assemble_operator,
     # testing
     set_element_boundaries,
@@ -23,15 +23,15 @@ using FiniteElementMatrices: ElementCoordinates,
                              finite_element_matrix
 using FastGaussQuadrature: gausslegendre, gausslobatto, gaussradau
 
-abstract type BoundaryConditionType end
-struct NaturalBC <: BoundaryConditionType end
-struct DirichletBC <: BoundaryConditionType end
-struct PeriodicBC <: BoundaryConditionType end
+abstract type AbstractBoundaryCondition end
+struct NaturalBC <: AbstractBoundaryCondition end
+struct DirichletBC <: AbstractBoundaryCondition end
+struct PeriodicBC <: AbstractBoundaryCondition end
 
 """
 struct containing information for first derivatives
 """
-struct FirstDerivativeData
+struct FirstDerivativeData{TFloat <: Real, TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # Local mass matrix = \int phi_i(x) phi_j(x) dx
     MM::Array{Float64,3}
     # Local first derivative matrix \int phi_i(x) phi'_j(x) dx
@@ -41,9 +41,9 @@ struct FirstDerivativeData
     # dummy array for storing solution
     dummy_df::Array{Float64,1}
     # Assembled 1D mass matrix
-    MM1D::AbstractSparseArray{Float64,Int64,2}
+    MM1D::TMatrix
     # Assembled 1D first derivative matrix
-    PP1D::AbstractSparseArray{Float64,Int64,2}
+    PP1D::TMatrix
     # LU object for mass matrix solve
     lu_MM1D::SuiteSparse.UMFPACK.UmfpackLU{Float64,Int64}
     """
@@ -55,7 +55,7 @@ struct FirstDerivativeData
                                         n::Int64,
                                         igrid_full::Array{Int64,2},
                                         element_data::Array{ElementCoordinates,1},
-                                        boundary_condition::BoundaryConditionType)
+                                        boundary_condition::Tbc) where Tbc <: AbstractBoundaryCondition
         # Local mass matrix MM[j,i] = \int phi_i(x) phi_j(x) dx
         MM = Array{Float64,3}(undef,ngrid,ngrid,nelement)
         # PP[j,i] = \int phi_i(x) phi'_j(x) dx
@@ -78,7 +78,7 @@ struct FirstDerivativeData
         MM1D_sparse = sparse(MM1D)
         PP1D_sparse = sparse(PP1D)
         lu_MM1D = lu(MM1D_sparse)
-        return new(MM,PP,dummy_rhs,dummy_df,
+        return new{Float64,typeof(MM1D)}(MM,PP,dummy_rhs,dummy_df,
                 MM1D_sparse,PP1D_sparse,lu_MM1D)
     end
 end
@@ -107,7 +107,7 @@ function assemble_1D_operator(QQ1D_local::Array{Float64,3},
                             nelement::Int64,
                             n::Int64,
                             igrid_full::Array{Int64,2},
-                            boundary_condition::BoundaryConditionType)
+                            boundary_condition::Tbc) where Tbc <: AbstractBoundaryCondition
     # create the 1D constructor arrays
     nsparse = (nelement - 1)*(ngrid^2 - 1) + ngrid^2
     II = zeros(Int64,nsparse)
@@ -218,7 +218,7 @@ end
 """
 structure containing basic information related to coordinates
 """
-struct FiniteElementCoordinate
+struct FiniteElementCoordinate{Tbc <: AbstractBoundaryCondition}
     # name is the name of the variable associated with this coordiante
     name::String
     # n is the total number of grid points associated with this coordinate
@@ -246,7 +246,7 @@ struct FiniteElementCoordinate
     # Note that the boundary condition must be separately supplied in the construction
     # of other operators, since not all operators have the same boundary conditions on
     # the same coordinates.
-    bc::BoundaryConditionType
+    bc::Tbc
     # wgts contains the integration weights associated with each grid point
     wgts::Array{Float64,1}
     # scale for each element
@@ -277,9 +277,10 @@ struct FiniteElementCoordinate
         scalar_input::ScalarCoordinateInputs;
         # the 1D Jacobian or weight function rho(x) that
         # appears in 1D integrals as \int (.) rho(x) d x
-        weight_function=((x)-> 1.0 )::Function,
+        weight_function::TF=((x)-> 1.0 ),
         # which boundary condition to store and use for first derivatives
-        bc=NaturalBC()::BoundaryConditionType)
+        bc::Tbc=NaturalBC()
+        ) where {TF <: Function, Tbc <: AbstractBoundaryCondition}
         ngrid = scalar_input.ngrid
         nelement = scalar_input.nelement
         # initialise the data used to construct the grid
@@ -324,9 +325,10 @@ struct FiniteElementCoordinate
         element_data::Union{Array{ElementCoordinates,1},Nothing};
         # the 1D Jacobian or weight function rho(x) that
         # appears in 1D integrals as \int (.) rho(x) d x
-        weight_function=((x)-> 1.0 )::Function,
+        weight_function::TF=((x)-> 1.0 ),
         # which boundary condition to store and use in first derivatives
-        bc=NaturalBC()::BoundaryConditionType)
+        bc::Tbc=NaturalBC()
+        ) where {TF <: Function, Tbc <: AbstractBoundaryCondition}
         if typeof(element_data) == Nothing
             # this is a trivial coordinate of length 1
             nelement = 1
@@ -430,7 +432,7 @@ struct FiniteElementCoordinate
         if typeof(bc) == PeriodicBC && (!include_lower_boundary || !include_upper_boundary)
             error("Must include upper and lower boundaries on the grid for typeof(bc) = $(typeof(bc))")
         end
-        return new(name, n_global, ngrid,
+        return new{typeof(bc)}(name, n_global, ngrid,
             nelement, domainLength, grid, igrid, ielement, imin, imax,
             igrid_full, bc, wgts,
             element_scale, element_shift, element_boundaries,
@@ -607,14 +609,16 @@ end
 Methods for imposing boundary conditions on 1D operators
 """
 function impose_boundary_condition_x(boundary_condition::Union{NaturalBC,DirichletBC},
-        operator_sparse::AbstractSparseArray{Float64,Int64,2},
-        n::Int64, ngrid::Int64, QQ::AbstractArray{Float64,3})
+        operator_sparse::TMatrix,
+        n::Int64, ngrid::Int64, QQ::Array{Float64,3}
+        ) where {TFloat <: Real, TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # do nothing
     return nothing
 end
 function impose_boundary_condition_x(boundary_condition::PeriodicBC,
-        operator_sparse::AbstractSparseArray{Float64,Int64,2},
-        n::Int64, ngrid::Int64, QQ::AbstractArray{Float64,3})
+        operator_sparse::TMatrix,
+        n::Int64, ngrid::Int64, QQ::Array{Float64,3}
+        ) where {TFloat <: Real, TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # periodic BC contributions
     # set lower row to (1, 0, ..., 0, -1)
     operator_sparse[1,:] .= 0.0
@@ -630,16 +634,18 @@ end
 Methods for imposing boundary conditions on 2D operators
 """
 function impose_boundary_condition_x(boundary_condition::NaturalBC,
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::Function)
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # do nothing
     return nothing
 end
 function impose_boundary_condition_x(boundary_condition::DirichletBC,
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::Function)
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     if x.include_lower_boundary
         # set row to (1, 0, 0, ..., 0)
         for iy in 1:y.n
@@ -659,9 +665,10 @@ function impose_boundary_condition_x(boundary_condition::DirichletBC,
     return nothing
 end
 function impose_boundary_condition_x(boundary_condition::PeriodicBC,
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::Function)
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     if x.include_lower_boundary
         # set row to (1, 0, 0, ..., 0, -1)
         for iy in 1:y.n
@@ -707,16 +714,18 @@ function impose_boundary_condition_x(boundary_condition::PeriodicBC,
 end
 
 function impose_boundary_condition_y(boundary_condition::NaturalBC,
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::Function)
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # do nothing
     return nothing
 end
 function impose_boundary_condition_y(boundary_condition::DirichletBC,
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::Function)
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     if y.include_lower_boundary
         # set row to (1, 0, 0, ..., 0)
         for ix in 1:x.n
@@ -736,9 +745,10 @@ function impose_boundary_condition_y(boundary_condition::DirichletBC,
     return nothing
 end
 function impose_boundary_condition_y(boundary_condition::PeriodicBC,
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::Function)
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     if y.include_lower_boundary
         # set row to (1, 0, 0, ..., 0, -1)
         for ix in 1:x.n
@@ -785,9 +795,10 @@ end
 
 function impose_boundary_condition(
             boundary_condition_x::PeriodicBC,boundary_condition_y::Union{NaturalBC,DirichletBC},
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::Function)
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # impose periodic BC first to ensure Dirichlet BC is imposed last
     impose_boundary_condition_x(boundary_condition_x,operator_sparse,x,y,weak_form)
     impose_boundary_condition_y(boundary_condition_y,operator_sparse,x,y,weak_form)
@@ -796,9 +807,10 @@ function impose_boundary_condition(
 end
 function impose_boundary_condition(
             boundary_condition_x::Union{NaturalBC,DirichletBC},boundary_condition_y::PeriodicBC,
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::Function)
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # impose periodic BC first to ensure Dirichlet BC is imposed last
     impose_boundary_condition_y(boundary_condition_y,operator_sparse,x,y,weak_form)
     impose_boundary_condition_x(boundary_condition_x,operator_sparse,x,y,weak_form)
@@ -806,9 +818,10 @@ function impose_boundary_condition(
 end
 function impose_boundary_condition(
             boundary_condition_x::Union{NaturalBC,DirichletBC},boundary_condition_y::Union{NaturalBC,DirichletBC},
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::Function)
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # order of imposition is unimportant
     impose_boundary_condition_x(boundary_condition_x,operator_sparse,x,y,weak_form)
     impose_boundary_condition_y(boundary_condition_y,operator_sparse,x,y,weak_form)
@@ -819,7 +832,8 @@ External method for assembling operators in one coordinate
 """
 function assemble_operator(weak_form::Array{Float64,3},
                             x::FiniteElementCoordinate,
-                            boundary_condition_x::BoundaryConditionType)
+                            boundary_condition_x::Tbc
+    ) where Tbc <: AbstractBoundaryCondition
     return assemble_1D_operator(weak_form,
             x.ngrid, x.nelement, x.n, x.igrid_full,
             boundary_condition_x)
@@ -828,11 +842,14 @@ end
 """
 Method for assembling operators in two coordinates
 """
-function assemble_operator(weak_form::Function,
+function assemble_operator(weak_form::TF,
                     x::FiniteElementCoordinate,
                     y::FiniteElementCoordinate,
-                    boundary_condition_x::BoundaryConditionType,
-                    boundary_condition_y::BoundaryConditionType)
+                    boundary_condition_x::Tbcx,
+                    boundary_condition_y::Tbcy
+                    ) where {TF <: Function,
+                        Tbcx <: AbstractBoundaryCondition,
+                        Tbcy <: AbstractBoundaryCondition}
     # Assemble a 2D mass matrix in the global compound coordinate
     # total number of non-zero element is the maximum index of
     # the sparse matrix index, by construction
