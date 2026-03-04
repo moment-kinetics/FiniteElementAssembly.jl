@@ -69,14 +69,18 @@ Once we have created a set of 1D coordinates that represent a N-D physical syste
 ```
 # method for assembling operators in one coordinate
 assemble_operator(weak_form::Array{Float64,3},
-                x::FiniteElementCoordinate,
-                boundary_condition_x::BoundaryConditionType)
+    x::FiniteElementCoordinate,
+    boundary_condition_x::Tbc
+    ) where Tbc <: AbstractBoundaryCondition
 # method for assembling operators in two coordinates
-assemble_operator(weak_form::Function,
-                    x::FiniteElementCoordinate,
-                    y::FiniteElementCoordinate,
-                    boundary_condition_x::BoundaryConditionType,
-                    boundary_condition_y::BoundaryConditionType)
+assemble_operator(weak_form::TF,
+    x::FiniteElementCoordinate,
+    y::FiniteElementCoordinate,
+    boundary_condition_x::Tbcx,
+    boundary_condition_y::Tbcy
+    ) where {TF <: Function,
+        Tbcx <: AbstractBoundaryCondition,
+        Tbcy <: AbstractBoundaryCondition}
 ```
 The returned value is of type `AbstractSparseArray{Float64,Int64,2}`.
 
@@ -114,10 +118,10 @@ and use `lu_Laplacian_Dirichlet_bc` with `ldiv!` as usual. See `test/PoissonSolv
 
 The internally supported boundary conditions are
 ```
-abstract type BoundaryConditionType end
-struct NaturalBC <: BoundaryConditionType end
-struct DirichletBC <: BoundaryConditionType end
-struct PeriodicBC <: BoundaryConditionType end
+abstract type AbstractBoundaryCondition end
+struct NaturalBC <: AbstractBoundaryCondition end
+struct DirichletBC <: AbstractBoundaryCondition end
+struct PeriodicBC <: AbstractBoundaryCondition end
 ```
 The user can define their own boundary condition types and extend the boundary condition function `impose_boundary_condition()` as required. Note that we explicitly supply the boundary condition choice for each call to `assemble_operator()`. The option to pass a boundary condition instance to the coordinate struct is given, e.g., from `test/PeriodicBcTests.jl`,
 ```
