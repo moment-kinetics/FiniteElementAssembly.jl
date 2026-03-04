@@ -279,8 +279,8 @@ struct FiniteElementCoordinate{Tbc <: AbstractBoundaryConditionType}
         # appears in 1D integrals as \int (.) rho(x) d x
         weight_function::TF=((x)-> 1.0 ),
         # which boundary condition to store and use for first derivatives
-        bc::AbstractBoundaryConditionType=NaturalBC()
-        ) where TF <: Function
+        bc::Tbc=NaturalBC()
+        ) where {TF <: Function, Tbc <: AbstractBoundaryConditionType}
         ngrid = scalar_input.ngrid
         nelement = scalar_input.nelement
         # initialise the data used to construct the grid
@@ -327,8 +327,8 @@ struct FiniteElementCoordinate{Tbc <: AbstractBoundaryConditionType}
         # appears in 1D integrals as \int (.) rho(x) d x
         weight_function::TF=((x)-> 1.0 ),
         # which boundary condition to store and use in first derivatives
-        bc::AbstractBoundaryConditionType=NaturalBC()
-        ) where TF <: Function
+        bc::Tbc=NaturalBC()
+        ) where {TF <: Function, Tbc <: AbstractBoundaryConditionType}
         if typeof(element_data) == Nothing
             # this is a trivial coordinate of length 1
             nelement = 1
@@ -821,7 +821,8 @@ External method for assembling operators in one coordinate
 """
 function assemble_operator(weak_form::Array{Float64,3},
                             x::FiniteElementCoordinate,
-                            boundary_condition_x::AbstractBoundaryConditionType)
+                            boundary_condition_x::Tbc
+    ) where Tbc <: AbstractBoundaryConditionType
     return assemble_1D_operator(weak_form,
             x.ngrid, x.nelement, x.n, x.igrid_full,
             boundary_condition_x)
@@ -833,9 +834,11 @@ Method for assembling operators in two coordinates
 function assemble_operator(weak_form::TF,
                     x::FiniteElementCoordinate,
                     y::FiniteElementCoordinate,
-                    boundary_condition_x::AbstractBoundaryConditionType,
-                    boundary_condition_y::AbstractBoundaryConditionType
-                    ) where TF <: Function
+                    boundary_condition_x::Tbcx,
+                    boundary_condition_y::Tbcy
+                    ) where {TF <: Function,
+                        Tbcx <: AbstractBoundaryConditionType,
+                        Tbcy <: AbstractBoundaryConditionType}
     # Assemble a 2D mass matrix in the global compound coordinate
     # total number of non-zero element is the maximum index of
     # the sparse matrix index, by construction
