@@ -7,7 +7,7 @@ export FiniteElementCoordinate,
     exclude_lower_boundary_point, exclude_upper_boundary_point,
     BoundaryPointType,
     impose_boundary_condition,
-    AbstractBoundaryConditionType, NaturalBC, DirichletBC, PeriodicBC,
+    AbstractBoundaryCondition, NaturalBC, DirichletBC, PeriodicBC,
     assemble_operator,
     # testing
     set_element_boundaries,
@@ -23,10 +23,10 @@ using FiniteElementMatrices: ElementCoordinates,
                              finite_element_matrix
 using FastGaussQuadrature: gausslegendre, gausslobatto, gaussradau
 
-abstract type AbstractBoundaryConditionType end
-struct NaturalBC <: AbstractBoundaryConditionType end
-struct DirichletBC <: AbstractBoundaryConditionType end
-struct PeriodicBC <: AbstractBoundaryConditionType end
+abstract type AbstractBoundaryCondition end
+struct NaturalBC <: AbstractBoundaryCondition end
+struct DirichletBC <: AbstractBoundaryCondition end
+struct PeriodicBC <: AbstractBoundaryCondition end
 
 """
 struct containing information for first derivatives
@@ -55,7 +55,7 @@ struct FirstDerivativeData{TFloat <: Real, TMatrix <: AbstractSparseArray{TFloat
                                         n::Int64,
                                         igrid_full::Array{Int64,2},
                                         element_data::Array{ElementCoordinates,1},
-                                        boundary_condition::Tbc) where Tbc <: AbstractBoundaryConditionType
+                                        boundary_condition::Tbc) where Tbc <: AbstractBoundaryCondition
         # Local mass matrix MM[j,i] = \int phi_i(x) phi_j(x) dx
         MM = Array{Float64,3}(undef,ngrid,ngrid,nelement)
         # PP[j,i] = \int phi_i(x) phi'_j(x) dx
@@ -107,7 +107,7 @@ function assemble_1D_operator(QQ1D_local::Array{Float64,3},
                             nelement::Int64,
                             n::Int64,
                             igrid_full::Array{Int64,2},
-                            boundary_condition::Tbc) where Tbc <: AbstractBoundaryConditionType
+                            boundary_condition::Tbc) where Tbc <: AbstractBoundaryCondition
     # create the 1D constructor arrays
     nsparse = (nelement - 1)*(ngrid^2 - 1) + ngrid^2
     II = zeros(Int64,nsparse)
@@ -218,7 +218,7 @@ end
 """
 structure containing basic information related to coordinates
 """
-struct FiniteElementCoordinate{Tbc <: AbstractBoundaryConditionType}
+struct FiniteElementCoordinate{Tbc <: AbstractBoundaryCondition}
     # name is the name of the variable associated with this coordiante
     name::String
     # n is the total number of grid points associated with this coordinate
@@ -280,7 +280,7 @@ struct FiniteElementCoordinate{Tbc <: AbstractBoundaryConditionType}
         weight_function::TF=((x)-> 1.0 ),
         # which boundary condition to store and use for first derivatives
         bc::Tbc=NaturalBC()
-        ) where {TF <: Function, Tbc <: AbstractBoundaryConditionType}
+        ) where {TF <: Function, Tbc <: AbstractBoundaryCondition}
         ngrid = scalar_input.ngrid
         nelement = scalar_input.nelement
         # initialise the data used to construct the grid
@@ -328,7 +328,7 @@ struct FiniteElementCoordinate{Tbc <: AbstractBoundaryConditionType}
         weight_function::TF=((x)-> 1.0 ),
         # which boundary condition to store and use in first derivatives
         bc::Tbc=NaturalBC()
-        ) where {TF <: Function, Tbc <: AbstractBoundaryConditionType}
+        ) where {TF <: Function, Tbc <: AbstractBoundaryCondition}
         if typeof(element_data) == Nothing
             # this is a trivial coordinate of length 1
             nelement = 1
@@ -833,7 +833,7 @@ External method for assembling operators in one coordinate
 function assemble_operator(weak_form::Array{Float64,3},
                             x::FiniteElementCoordinate,
                             boundary_condition_x::Tbc
-    ) where Tbc <: AbstractBoundaryConditionType
+    ) where Tbc <: AbstractBoundaryCondition
     return assemble_1D_operator(weak_form,
             x.ngrid, x.nelement, x.n, x.igrid_full,
             boundary_condition_x)
@@ -848,8 +848,8 @@ function assemble_operator(weak_form::TF,
                     boundary_condition_x::Tbcx,
                     boundary_condition_y::Tbcy
                     ) where {TF <: Function,
-                        Tbcx <: AbstractBoundaryConditionType,
-                        Tbcy <: AbstractBoundaryConditionType}
+                        Tbcx <: AbstractBoundaryCondition,
+                        Tbcy <: AbstractBoundaryCondition}
     # Assemble a 2D mass matrix in the global compound coordinate
     # total number of non-zero element is the maximum index of
     # the sparse matrix index, by construction
