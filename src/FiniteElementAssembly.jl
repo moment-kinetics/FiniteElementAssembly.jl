@@ -609,14 +609,16 @@ end
 Methods for imposing boundary conditions on 1D operators
 """
 function impose_boundary_condition_x(boundary_condition::Union{NaturalBC,DirichletBC},
-        operator_sparse::AbstractSparseArray{Float64,Int64,2},
-        n::Int64, ngrid::Int64, QQ::AbstractArray{Float64,3})
+        operator_sparse::TMatrix,
+        n::Int64, ngrid::Int64, QQ::Array{Float64,3}
+        ) where {TFloat <: Real, TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # do nothing
     return nothing
 end
 function impose_boundary_condition_x(boundary_condition::PeriodicBC,
-        operator_sparse::AbstractSparseArray{Float64,Int64,2},
-        n::Int64, ngrid::Int64, QQ::AbstractArray{Float64,3})
+        operator_sparse::TMatrix,
+        n::Int64, ngrid::Int64, QQ::Array{Float64,3}
+        ) where {TFloat <: Real, TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # periodic BC contributions
     # set lower row to (1, 0, ..., 0, -1)
     operator_sparse[1,:] .= 0.0
@@ -632,16 +634,18 @@ end
 Methods for imposing boundary conditions on 2D operators
 """
 function impose_boundary_condition_x(boundary_condition::NaturalBC,
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::TF) where TF <: Function
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # do nothing
     return nothing
 end
 function impose_boundary_condition_x(boundary_condition::DirichletBC,
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::TF) where TF <: Function
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     if x.include_lower_boundary
         # set row to (1, 0, 0, ..., 0)
         for iy in 1:y.n
@@ -661,9 +665,10 @@ function impose_boundary_condition_x(boundary_condition::DirichletBC,
     return nothing
 end
 function impose_boundary_condition_x(boundary_condition::PeriodicBC,
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::TF) where TF <: Function
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     if x.include_lower_boundary
         # set row to (1, 0, 0, ..., 0, -1)
         for iy in 1:y.n
@@ -709,16 +714,18 @@ function impose_boundary_condition_x(boundary_condition::PeriodicBC,
 end
 
 function impose_boundary_condition_y(boundary_condition::NaturalBC,
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::TF) where TF <: Function
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # do nothing
     return nothing
 end
 function impose_boundary_condition_y(boundary_condition::DirichletBC,
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::TF) where TF <: Function
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     if y.include_lower_boundary
         # set row to (1, 0, 0, ..., 0)
         for ix in 1:x.n
@@ -738,9 +745,10 @@ function impose_boundary_condition_y(boundary_condition::DirichletBC,
     return nothing
 end
 function impose_boundary_condition_y(boundary_condition::PeriodicBC,
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::TF) where TF <: Function
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     if y.include_lower_boundary
         # set row to (1, 0, 0, ..., 0, -1)
         for ix in 1:x.n
@@ -787,9 +795,10 @@ end
 
 function impose_boundary_condition(
             boundary_condition_x::PeriodicBC,boundary_condition_y::Union{NaturalBC,DirichletBC},
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::TF) where TF <: Function
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # impose periodic BC first to ensure Dirichlet BC is imposed last
     impose_boundary_condition_x(boundary_condition_x,operator_sparse,x,y,weak_form)
     impose_boundary_condition_y(boundary_condition_y,operator_sparse,x,y,weak_form)
@@ -798,9 +807,10 @@ function impose_boundary_condition(
 end
 function impose_boundary_condition(
             boundary_condition_x::Union{NaturalBC,DirichletBC},boundary_condition_y::PeriodicBC,
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::TF) where TF <: Function
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # impose periodic BC first to ensure Dirichlet BC is imposed last
     impose_boundary_condition_y(boundary_condition_y,operator_sparse,x,y,weak_form)
     impose_boundary_condition_x(boundary_condition_x,operator_sparse,x,y,weak_form)
@@ -808,9 +818,10 @@ function impose_boundary_condition(
 end
 function impose_boundary_condition(
             boundary_condition_x::Union{NaturalBC,DirichletBC},boundary_condition_y::Union{NaturalBC,DirichletBC},
-            operator_sparse::AbstractSparseArray{Float64,Int64,2},
+            operator_sparse::TMatrix,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
-            weak_form::TF) where TF <: Function
+            weak_form::TF) where {TF <: Function, TFloat <: Real,
+                    TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # order of imposition is unimportant
     impose_boundary_condition_x(boundary_condition_x,operator_sparse,x,y,weak_form)
     impose_boundary_condition_y(boundary_condition_y,operator_sparse,x,y,weak_form)
