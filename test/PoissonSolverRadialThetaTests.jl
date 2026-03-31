@@ -46,15 +46,24 @@ struct PoissonThetaRadialMatrices
 end
 
 function runtests(; ngrid_theta=15, nelement_theta = 4, Ltheta = 1.0,
-    ngrid_radial=7, nelement_radial = 4, Lradial = 1.0, print_to_screen=false)
+    ngrid_radial=7, nelement_radial = 4, Lradial = 1.0, print_to_screen=false,
+    test_include_origin=false)
     # create the coordinates
     theta = FiniteElementCoordinate("theta", ScalarCoordinateInputs(ngrid_theta,
                                 nelement_theta,
                                 -0.5*Ltheta,0.5*Ltheta,include_boundary_points))
-    radial = FiniteElementCoordinate("radial", ScalarCoordinateInputs(ngrid_radial,
+    if test_include_origin
+        radial = FiniteElementCoordinate("radial", ScalarCoordinateInputs(ngrid_radial,
+                                nelement_radial,
+                                0.0,Lradial,include_boundary_points),
+                                weight_function=((r)-> 2.0*pi*r),
+                                impose_lower_boundary_condition=false)
+    else
+        radial = FiniteElementCoordinate("radial", ScalarCoordinateInputs(ngrid_radial,
                                 nelement_radial,
                                 0.0,Lradial,exclude_lower_boundary_point),
                                 weight_function=((r)-> 2.0*pi*r))
+    end
     # allocate fields, noting order (theta,radial) must be the same as in operator definition
     phi = zeros(radial.n,theta.n)
     exact_phi = zeros(radial.n,theta.n)
@@ -120,8 +129,8 @@ function runtests(; ngrid_theta=15, nelement_theta = 4, Ltheta = 1.0,
         return nothing
     end
 
-    @testset "Poisson Solver (Radial, Theta) Tests" begin
-        println("Poisson Solver (Radial, Theta) Tests")
+    @testset "Poisson Solver (Radial, Theta) Tests test_include_origin=$test_include_origin" begin
+        println("Poisson Solver (Radial, Theta) Tests test_include_origin=$test_include_origin")
         test_Poisson(kk=2, phase = 0.0)
         test_Poisson(kk=2, phase = pi/4.0)
         test_Poisson(kk=2, phase = pi/3.0)
@@ -143,3 +152,4 @@ end # PoissonSolverRadialThetaTests
 using .PoissonSolverRadialThetaTests
 
 PoissonSolverRadialThetaTests.runtests()
+PoissonSolverRadialThetaTests.runtests(test_include_origin=true)
