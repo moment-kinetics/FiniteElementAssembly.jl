@@ -265,6 +265,10 @@ struct FiniteElementCoordinate{Tbc <: AbstractBoundaryCondition}
     include_lower_boundary::Bool
     # flag to determine if upper endpoint is on the grid
     include_upper_boundary::Bool
+    # flag to determine if bc is imposed on lower boundary
+    impose_lower_boundary_condition::Bool
+    # flag to determine if bc is imposed on upper boundary
+    impose_upper_boundary_condition::Bool
     """
     This internal constructor for `FiniteElementCoordinate`
     takes `scalar_input = ScalarCoordinateInputs(ngrid,nelement,coord_min,coord_max)` to construct
@@ -279,7 +283,9 @@ struct FiniteElementCoordinate{Tbc <: AbstractBoundaryCondition}
         # appears in 1D integrals as \int (.) rho(x) d x
         weight_function::TF=((x)-> 1.0 ),
         # which boundary condition to store and use for first derivatives
-        bc::Tbc=NaturalBC()
+        bc::Tbc=NaturalBC(),
+        impose_lower_boundary_condition::Bool=true,
+        impose_upper_boundary_condition::Bool=true
         ) where {TF <: Function, Tbc <: AbstractBoundaryCondition}
         ngrid = scalar_input.ngrid
         nelement = scalar_input.nelement
@@ -305,7 +311,9 @@ struct FiniteElementCoordinate{Tbc <: AbstractBoundaryCondition}
         else
             element_data = nothing
         end
-        return FiniteElementCoordinate(name, element_data, weight_function=weight_function, bc=bc)
+        return FiniteElementCoordinate(name, element_data, weight_function=weight_function, bc=bc,
+                impose_lower_boundary_condition=impose_lower_boundary_condition,
+                impose_upper_boundary_condition=impose_upper_boundary_condition)
     end
     """
     This is the fundamental internal constructor
@@ -327,7 +335,9 @@ struct FiniteElementCoordinate{Tbc <: AbstractBoundaryCondition}
         # appears in 1D integrals as \int (.) rho(x) d x
         weight_function::TF=((x)-> 1.0 ),
         # which boundary condition to store and use in first derivatives
-        bc::Tbc=NaturalBC()
+        bc::Tbc=NaturalBC(),
+        impose_lower_boundary_condition::Bool=true,
+        impose_upper_boundary_condition::Bool=true
         ) where {TF <: Function, Tbc <: AbstractBoundaryCondition}
         if typeof(element_data) == Nothing
             # this is a trivial coordinate of length 1
@@ -432,12 +442,18 @@ struct FiniteElementCoordinate{Tbc <: AbstractBoundaryCondition}
         if typeof(bc) == PeriodicBC && (!include_lower_boundary || !include_upper_boundary)
             error("Must include upper and lower boundaries on the grid for typeof(bc) = $(typeof(bc))")
         end
+        if typeof(bc) == PeriodicBC && (!impose_lower_boundary_condition || !impose_upper_boundary_condition)
+            error("Must impose upper and lower boundary conditions on the grid for typeof(bc) = $(typeof(bc))")
+        end
+        impose_lower_boundary_condition = impose_lower_boundary_condition && include_lower_boundary
+        impose_upper_boundary_condition = impose_upper_boundary_condition && include_upper_boundary
         return new{typeof(bc)}(name, n_global, ngrid,
             nelement, domainLength, grid, igrid, ielement, imin, imax,
             igrid_full, bc, wgts,
             element_scale, element_shift, element_boundaries,
             lpoly_data, element_data, derivative_data,
-            include_lower_boundary, include_upper_boundary)
+            include_lower_boundary, include_upper_boundary,
+            impose_lower_boundary_condition, impose_upper_boundary_condition)
     end
 end
 
@@ -646,7 +662,7 @@ function impose_boundary_condition_x(boundary_condition::DirichletBC,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
             weak_form::TF) where {TF <: Function, TFloat <: Real,
                     TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
-    if x.include_lower_boundary
+    if x.impose_lower_boundary_condition
         # set row to (1, 0, 0, ..., 0)
         for iy in 1:y.n
             ixy = ixy_func(1,iy,x.n)
@@ -654,7 +670,7 @@ function impose_boundary_condition_x(boundary_condition::DirichletBC,
             operator_sparse[ixy,ixy] = 1.0
         end
     end
-    if x.include_upper_boundary
+    if x.impose_upper_boundary_condition
         # set row to (1, 0, 0, ..., 0)
         for iy in 1:y.n
             ixy = ixy_func(x.n,iy,x.n)
@@ -669,7 +685,7 @@ function impose_boundary_condition_x(boundary_condition::PeriodicBC,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
             weak_form::TF) where {TF <: Function, TFloat <: Real,
                     TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
-    if x.include_lower_boundary
+    if x.impose_lower_boundary_condition
         # set row to (1, 0, 0, ..., 0, -1)
         for iy in 1:y.n
             ixy = ixy_func(1,iy,x.n)
@@ -681,7 +697,7 @@ function impose_boundary_condition_x(boundary_condition::PeriodicBC,
     else
         error("impose_boundary_condition_x(): x.include_lower_boundary=true is required for boundary_condition_x=PeriodicBC()")
     end
-    if x.include_upper_boundary
+    if x.impose_upper_boundary_condition
         # assemble lower row contribution to upper row
         ielement_x = 1
         # x index of row assembled to
@@ -726,7 +742,7 @@ function impose_boundary_condition_y(boundary_condition::DirichletBC,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
             weak_form::TF) where {TF <: Function, TFloat <: Real,
                     TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
-    if y.include_lower_boundary
+    if y.impose_lower_boundary_condition
         # set row to (1, 0, 0, ..., 0)
         for ix in 1:x.n
             ixy = ixy_func(ix,1,x.n)
@@ -734,7 +750,7 @@ function impose_boundary_condition_y(boundary_condition::DirichletBC,
             operator_sparse[ixy,ixy] = 1.0
         end
     end
-    if y.include_upper_boundary
+    if y.impose_upper_boundary_condition
         # set row to (1, 0, 0, ..., 0)
         for ix in 1:x.n
             ixy = ixy_func(ix,y.n,x.n)
@@ -749,7 +765,7 @@ function impose_boundary_condition_y(boundary_condition::PeriodicBC,
             x::FiniteElementCoordinate,y::FiniteElementCoordinate,
             weak_form::TF) where {TF <: Function, TFloat <: Real,
                     TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
-    if y.include_lower_boundary
+    if y.impose_lower_boundary_condition
         # set row to (1, 0, 0, ..., 0, -1)
         for ix in 1:x.n
             ixy = ixy_func(ix,1,x.n)
@@ -761,7 +777,7 @@ function impose_boundary_condition_y(boundary_condition::PeriodicBC,
     else
         error("impose_boundary_condition_y(): y.include_lower_boundary=true is required for boundary_condition_y=PeriodicBC()")
     end
-    if y.include_upper_boundary
+    if y.impose_upper_boundary_condition
         # assemble lower row contribution to upper row
         ielement_y = 1
         # y index of row assembled to
