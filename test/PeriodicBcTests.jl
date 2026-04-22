@@ -72,13 +72,9 @@ function periodic_ODE_solve_1D_test(; ngrid = 20, nelement = 1, atol = 1.0e-13)
     end
     # assembled sparse matrices
     mass_matrix = assemble_operator(M_x, x, PeriodicBC())
-    stiffness_matrix = assemble_operator(K_x, x, PeriodicBC())
+    stiffness_matrix = assemble_operator(K_x, x, DirichletBC())
     lu_mass_matrix = lu(mass_matrix)
     # Dirichlet BC.
-    stiffness_matrix[1,:] .= 0.0
-    stiffness_matrix[1,1] = 1.0
-    stiffness_matrix[end,:] .= 0.0
-    stiffness_matrix[end,end] = 1.0
     lu_Laplacian = lu(stiffness_matrix)
     
     # form the weak RHS
@@ -114,6 +110,9 @@ function runtests()
         periodic_differentiation_1D_test(; ngrid = 25, nelement = 1)
         periodic_differentiation_1D_test(; ngrid = 25, nelement = 2)
         periodic_differentiation_1D_test(; ngrid = 25, nelement = 3, atol = 1.0e-12)
+    end
+    @testset "Periodic ODE Integration 1D" begin
+        println("Periodic ODE Integration 1D Tests")
         periodic_ODE_solve_1D_test(; ngrid = 20, nelement = 1)
         periodic_ODE_solve_1D_test(; ngrid = 20, nelement = 2)
         periodic_ODE_solve_1D_test(; ngrid = 20, nelement = 3)
