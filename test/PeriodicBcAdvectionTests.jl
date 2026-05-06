@@ -1,7 +1,7 @@
 """
 Module to test advection in 1D with periodic boundary conditions.
 """
-module AdvectionTests
+module PeriodicBcAdvectionTests
 
 using Test: @testset, @test
 using FiniteElementAssembly
@@ -131,16 +131,16 @@ function advection_1D_test(; ngrid = 20, nelement = 1, atol = 1.0e-13,
 end
 
 function runtests()
-    @testset "Advection 1D" begin
-        println("Advection 1D Tests")
+    @testset "Periodic Advection 1D" begin
+        println("Periodic Advection 1D Tests")
         advection_1D_test(; ngrid=15, nelement=1, ntime=10000, vx=1.0, delta_t=0.0001, first_order=false, atol=5.0e-7)
         advection_1D_test(; ngrid=15, nelement=1, ntime=10000, vx=1.0, delta_t=0.0001, first_order=true, atol=8e-3)
     end
     return nothing
 end
 
-end # AdvectionTests
+end # PeriodicBcAdvectionTests
 
-using .AdvectionTests
+using .PeriodicBcAdvectionTests
 
-AdvectionTests.runtests()
+PeriodicBcAdvectionTests.runtests()
