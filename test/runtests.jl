@@ -10,6 +10,7 @@ using Test
     include(joinpath(@__DIR__, "PoissonSolverThetaZedTests.jl"))
     include(joinpath(@__DIR__, "PoissonSolverRadialThetaTests.jl"))
     include(joinpath(@__DIR__, "PeriodicBcTests.jl"))
+    include(joinpath(@__DIR__, "PeriodicBcAdvectionTests.jl"))
     include(joinpath(@__DIR__, "ElectronIonCollisionsTest.jl"))
     include(joinpath(@__DIR__, "TestParticleCollisionsVpaVperp.jl"))
     include(joinpath(@__DIR__, "SlowingDownTest.jl"))

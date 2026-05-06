@@ -624,11 +624,23 @@ end
 """
 Methods for imposing boundary conditions on 1D operators
 """
-function impose_boundary_condition_x(boundary_condition::Union{NaturalBC,DirichletBC},
+function impose_boundary_condition_x(boundary_condition::NaturalBC,
         operator_sparse::TMatrix,
         n::Int64, ngrid::Int64, QQ::Array{Float64,3}
         ) where {TFloat <: Real, TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
     # do nothing
+    return nothing
+end
+function impose_boundary_condition_x(boundary_condition::DirichletBC,
+        operator_sparse::TMatrix,
+        n::Int64, ngrid::Int64, QQ::Array{Float64,3}
+        ) where {TFloat <: Real, TMatrix <: AbstractSparseArray{TFloat,Int64,2}}
+    # set lower row to (1, 0, 0, ..., 0)
+    operator_sparse[1,:] .= 0.0
+    operator_sparse[1,1] = 1.0
+    # set upper row to (0, 0, 0, ..., 1)
+    operator_sparse[end,:] .= 0.0
+    operator_sparse[end,end] = 1.0
     return nothing
 end
 function impose_boundary_condition_x(boundary_condition::PeriodicBC,
