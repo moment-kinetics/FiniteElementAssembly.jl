@@ -9,7 +9,8 @@ using FiniteElementAssembly: FiniteElementCoordinate,
                             first_derivative!,
                             ScalarCoordinateInputs,
                             include_boundary_points, exclude_boundary_points,
-                            exclude_lower_boundary_point, exclude_upper_boundary_point
+                            exclude_lower_boundary_point, exclude_upper_boundary_point,
+                            NaturalBC, DirichletBC
 using FiniteElementAssembly: integral
 
 """
@@ -24,16 +25,18 @@ function runtests()
         rng = StableRNG(42)
 
         @testset "GaussLegendre derivatives and fundamental theorem of calculus, testing exact polynomials" begin
-            @testset "$nelement $ngrid $boundary_points" for nelement ∈ (1:5), ngrid ∈ (3:17),
+            @testset "$nelement $ngrid $boundary_points $bc" for nelement ∈ (1:5), ngrid ∈ (3:17),
                     boundary_points in (include_boundary_points, exclude_boundary_points,
-                            exclude_lower_boundary_point, exclude_upper_boundary_point)
+                            exclude_lower_boundary_point, exclude_upper_boundary_point),
+                    bc in (NaturalBC(), DirichletBC())
 
                 # define inputs needed for the test
                 coord_min = -1.0
                 coord_max = 1.0
                 # create the coordinate struct 'x'
                 x = FiniteElementCoordinate("coord", ScalarCoordinateInputs(ngrid,
-                                      nelement, coord_min, coord_max, boundary_points))
+                                      nelement, coord_min, coord_max, boundary_points),
+                                      bc=bc)
                 # test polynomials up to order ngrid-1
                 for n ∈ 0:ngrid-1
                     # create array for the function f(x) to be differentiated/integrated

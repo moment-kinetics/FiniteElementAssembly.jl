@@ -28,6 +28,16 @@ struct NaturalBC <: AbstractBoundaryCondition end
 struct DirichletBC <: AbstractBoundaryCondition end
 struct PeriodicBC <: AbstractBoundaryCondition end
 
+# logic to ensure that only NaturalBC or PeriodicBC are used in first derivatives
+# - periodic boundary conditions are passed on
+function first_derivative_boundary_condition(bc::PeriodicBC)
+    return PeriodicBC()
+end
+# - Dirichlet boundary conditions are converted to natural boundary conditions
+function first_derivative_boundary_condition(bc::Union{NaturalBC,DirichletBC})
+    return NaturalBC()
+end
+
 """
 struct containing information for first derivatives
 """
@@ -69,12 +79,13 @@ struct FirstDerivativeData{TFloat <: Real, TMatrix <: AbstractSparseArray{TFloat
         # dummy arrays
         dummy_rhs = Array{Float64,1,}(undef,n)
         dummy_df = Array{Float64,1,}(undef,n)
-
+        # boundary condition for first derivative matrices, only NaturalBC or PeriodicBC allowed
+        first_derivative_bc = first_derivative_boundary_condition(boundary_condition)
         # assemble the global matrices with a sparse construction
         MM1D = assemble_1D_operator(MM, ngrid, nelement,
-                            n, igrid_full, boundary_condition)
+                            n, igrid_full, first_derivative_bc)
         PP1D = assemble_1D_operator(PP, ngrid, nelement,
-                            n, igrid_full, boundary_condition)
+                            n, igrid_full, first_derivative_bc)
         MM1D_sparse = sparse(MM1D)
         PP1D_sparse = sparse(PP1D)
         lu_MM1D = lu(MM1D_sparse)
