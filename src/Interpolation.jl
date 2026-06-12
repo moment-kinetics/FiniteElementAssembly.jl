@@ -8,12 +8,12 @@ the domain covered by the coordinate grid `xcoord`.
 """
 function value_in_coordinate_domain(xval::Float64, xcoord::FiniteElementCoordinate)
     xebs = xcoord.element_boundaries
-    tolerance = 1.0e-14
+    tolerance = eps(Float64)
     # internal point
     if (xval - xebs[1])*(xebs[end] - xval) > tolerance
         in_domain = true
     # boundary points
-    elseif (abs(xval-xebs[1]) < 100*tolerance) || (abs(xval-xebs[end]) < 100*tolerance)
+    elseif (abs(xval-xebs[1]) < tolerance) || (abs(xval-xebs[end]) < tolerance)
         in_domain = true
     else
         in_domain = false
