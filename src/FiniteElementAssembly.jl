@@ -364,10 +364,19 @@ struct FiniteElementCoordinate{Tbc <: AbstractBoundaryCondition}
             nelement = length(element_data)
             # number of grid points per element
             ngrid = length(element_data[1].lpoly_data.x_nodes)
-            # check ngrid the same for each element
+            # checks on inputs
             for j in 2:nelement
+                # check ngrid the same for each element
                 if !(length(element_data[j].lpoly_data.x_nodes) == ngrid)
                     error("length(element_data[j].lpoly_data.x_nodes) /= ngrid \n Number of nodes in reference grid must be the same for each element")
+                end
+                # check lower internal endpoint = -1
+                if !(abs(element_data[j].lpoly_data.x_nodes[1] + 1.0) < eps(Float64))
+                    error("Internal element boundaries must be included in the domain with element_data[$j].lpoly_data.x_nodes[1] = -1.0")
+                end
+                # check upper internal endpoint = 1
+                if !(abs(element_data[j-1].lpoly_data.x_nodes[end] - 1.0) < eps(Float64))
+                    error("Internal element boundaries must be included in the domain with element_data[$(j-1)].lpoly_data.x_nodes[end] = 1.0")
                 end
             end
             # extract shift, scale, and boundary values
