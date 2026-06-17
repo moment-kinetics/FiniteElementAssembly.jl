@@ -25,32 +25,6 @@ end
 Function to find the element in which the value xval sits in the
 assembled grid of the coordinate xcoord.
 """
-# linear search algorithm
-# function get_ielement(xval::Float64,
-#             xcoord::FiniteElementCoordinate)
-#     @inbounds begin
-#         xebs = xcoord.element_boundaries
-#         nelement = xcoord.nelement
-#         tolerance = 1.0e-14
-#         ielement = -1
-#         # find the element
-#         for j in 1:nelement
-#             # check for internal points
-#             if (xval - xebs[j])*(xebs[j+1] - xval) > tolerance
-#                 ielement = j
-#                 break
-#             # check for boundary points
-#             elseif (abs(xval-xebs[j]) < 100*tolerance) || (abs(xval-xebs[j+1]) < 100*tolerance && j == nelement)
-#                 ielement = j
-#                 break
-#             end
-#         end
-#         if ielement < 1
-#             error("xval=$xval is not within the coordinate $(xcoord.name)")
-#         end
-#         return ielement
-#     end
-# end
 function get_ielement(xval::Float64,
             xcoord::FiniteElementCoordinate)
     # search by bisection
